@@ -1,14 +1,16 @@
 "use client";
+import gsap from "gsap";
 import { useRef, useEffect } from "react";
 
 interface SpriteOptions {
   position: { x: number; y: number };
   velocity?: { vel: number };
   image: HTMLImageElement;
-  frames?: { max: number; val: number; elapsed: number };
+  frames?: { max: number; val: number; elapsed: number; hold: number };
   width?: number;
   height?: number;
   moving?: boolean;
+  animate?: boolean;
   sprites?: {
     up: HTMLImageElement;
     down: HTMLImageElement;
@@ -26,46 +28,52 @@ interface Rectangle {
 class Sprite {
   position: { x: number; y: number };
   image: HTMLImageElement;
-  frames: { max: number; val: number; elapsed: number };
+  frames: { max: number; val: number; elapsed: number; hold: number };
   width: number;
   height: number;
-  moving: boolean;
-  sprites: any;
+  animate: boolean;
+  sprites?: {
+    up: HTMLImageElement;
+    down: HTMLImageElement;
+    left: HTMLImageElement;
+    right: HTMLImageElement;
+  };
 
   constructor({
     position,
     image,
-    frames = { max: 1, val: 0, elapsed: 0 },
+    frames = { max: 1, val: 0, elapsed: 0, hold: 20 },
     width,
     height,
     moving,
     sprites,
+    animate = false,
   }: SpriteOptions) {
     this.position = position;
     this.image = image;
     this.frames = { ...frames, val: 0, elapsed: 0 };
-    this.width = this.image.width / this.frames.max;
-    this.height = this.image.height;
-    this.moving = false;
+    this.width = width || this.image.width / this.frames.max;
+    this.height = height || this.image.height;
+    this.animate = animate;
     this.sprites = sprites;
   }
   draw(c: CanvasRenderingContext2D) {
     c.drawImage(
       this.image,
-      this.frames.val * this.width,
+      this.frames.val * (this.image.width / this.frames.max),
       0,
       this.image.width / this.frames.max,
       this.image.height,
       this.position.x,
       this.position.y,
-      this.image.width / this.frames.max,
-      this.image.height,
+      this.width,
+      this.height,
     );
-    if (!this.moving) return;
+    if (!this.animate) return;
     if (this.frames.max > 1) {
       this.frames.elapsed++;
     }
-    if (this.frames.elapsed % 20 === 0) {
+    if (this.frames.elapsed % this.frames.hold === 0) {
       if (this.frames.val < this.frames.max - 1) {
         this.frames.val++;
       } else {
@@ -225,13 +233,135 @@ export default function Home() {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   ];
 
+  const battleZonesData = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1025, 0, 0,
+    1025, 1025, 1025, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1025, 1025,
+    1025, 1025, 1025, 1025, 1025, 1025, 1025, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1025, 1025, 1025, 1025, 1025, 1025, 1025, 1025, 1025, 1025, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 1025, 1025, 1025, 1025, 1025, 1025, 1025, 1025, 1025, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 1025, 1025, 1025, 1025, 1025, 1025, 1025, 1025,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  ];
+
   const collisionsMap: number[][] = [];
+  const battleZonesMap: number[][] = [];
 
   const boundaries: Boundary[] = [];
 
   const SPEED = 0.75;
 
   const offset = { x: -1550, y: -500 };
+
+  const battle = useRef({
+    initiated: false,
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -261,7 +391,9 @@ export default function Home() {
       loadImage("/playerUp.png"),
       loadImage("/playerLeft.png"),
       loadImage("/playerRight.png"),
-      loadImage("/foreground.png"),
+      loadImage("/battleBackground.png"),
+      loadImage("/draggleSprite.png"),
+      loadImage("/embySprite.png"),
     ]).then(
       ([
         worldImage,
@@ -269,10 +401,16 @@ export default function Home() {
         playerUpImage,
         playerLeftImage,
         playerRightImage,
-        foregroundImage,
+        battleBackgroundImage,
+        draggleImage,
+        embyImage,
       ]) => {
         for (let i = 0; i < collisions.length; i += 70) {
           collisionsMap.push(collisions.slice(i, i + 70));
+        }
+
+        for (let i = 0; i < battleZonesData.length; i += 70) {
+          battleZonesMap.push(battleZonesData.slice(i, i + 70));
         }
 
         collisionsMap.forEach((row, i) => {
@@ -289,6 +427,25 @@ export default function Home() {
             }
           });
         });
+
+        const battleZones: Boundary[] = [];
+
+        battleZonesMap.forEach((row, i) => {
+          row.forEach((symbol, j) => {
+            if (symbol == 1025) {
+              battleZones.push(
+                new Boundary({
+                  position: {
+                    x: j * Boundary.width + offset.x,
+                    y: i * Boundary.height + offset.y,
+                  },
+                }),
+              );
+            }
+          });
+        });
+
+        console.log(gsap);
 
         c.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -307,6 +464,7 @@ export default function Home() {
             max: 4,
             val: 0,
             elapsed: 0,
+            hold: 20,
           },
           sprites: {
             up: playerUpImage,
@@ -316,12 +474,7 @@ export default function Home() {
           },
         });
 
-        const foreground = new Sprite({
-          position: { x: offset.x, y: offset.y },
-          image: foregroundImage,
-        });
-
-        const movables = [background, ...boundaries, foreground];
+        const movables = [background, ...boundaries, ...battleZones];
 
         function rectangularCollision({
           rectangle1,
@@ -339,25 +492,141 @@ export default function Home() {
           );
         }
 
+        const battleBackground = new Sprite({
+          position: { x: 0, y: 0 },
+          image: battleBackgroundImage,
+          width: canvas.width,
+          height: 180,
+        });
+        const draggle = new Sprite({
+          position: { x: 265, y: 0 },
+          image: draggleImage,
+          frames: {
+            max: 4,
+            val: 0,
+            elapsed: 0,
+            hold: 40,
+          },
+          animate: true,
+          width: 60,
+          height: 60,
+        });
+
+        const emby = new Sprite({
+          position: { x: 80, y: 80 },
+          image: embyImage,
+          frames: {
+            max: 4,
+            val: 0,
+            elapsed: 0,
+            hold: 40,
+          },
+          animate: true,
+          width: 60,
+          height: 60,
+        });
+
+        function animateBattle() {
+          if (!c) return;
+          window.requestAnimationFrame(animateBattle);
+          battleBackground.draw(c);
+          draggle.draw(c);
+          emby.draw(c);
+          console.log("animate battle");
+        }
+
         function animate() {
           if (!c) return;
           if (!canvas) return;
-          window.requestAnimationFrame(animate);
+          const animationId = window.requestAnimationFrame(animate);
 
           background.draw(c);
           player.draw(c);
-          foreground.draw(c);
 
           boundaries.forEach((boundary) => {
             boundary.draw(c);
           });
-
           let moving = true;
-          player.moving = false;
+          player.animate = false;
+          console.log(animationId);
+          if (battle.current.initiated) return; //activate a battle
+          if (
+            keys.w.pressed ||
+            keys.a.pressed ||
+            keys.s.pressed ||
+            keys.d.pressed
+          ) {
+            for (let i = 0; i < battleZones.length; i++) {
+              const battleZone = battleZones[i];
+              const overlappingArea =
+                (Math.min(
+                  player.position.x + player.width,
+                  battleZone.position.x + battleZone.width,
+                ) -
+                  Math.max(player.position.x, battleZone.position.x)) *
+                (Math.min(
+                  player.position.y + player.height,
+                  battleZone.position.y + battleZone.height,
+                ) -
+                  Math.max(player.position.y, battleZone.position.y));
+              if (
+                rectangularCollision({
+                  rectangle1: {
+                    ...player,
+                    width: player.width / 2,
+                    height: player.height / 4, // Very short box
+                    position: {
+                      x: player.position.x + player.width / 4,
+                      y: player.position.y + player.height * 0.7, // Position at the bottom
+                    },
+                  },
+                  rectangle2: battleZone,
+                }) &&
+                overlappingArea > (battleZone.width * battleZone.height) / 2 &&
+                Math.random() < 0.01
+              ) {
+                console.log("activate battle");
+                //deactivate animation loop
+                window.cancelAnimationFrame(animationId);
+                battle.current.initiated = true;
+                gsap.to("#overlappingDiv", {
+                  opacity: 1,
+                  repeat: 3,
+                  yoyo: true,
+                  duration: 0.4,
+                  onComplete() {
+                    gsap.to("#overlappingDiv", {
+                      opacity: 1,
+                      duration: 0.4,
+                      onComplete() {
+                        gsap.to("#overlappingDiv", {
+                          opacity: 1,
+                          duration: 0.4,
+                          onComplete() {
+                            // activate a new animation loop,
+                            animateBattle();
+                            gsap.to("#overlappingDiv", {
+                              opacity: 0,
+                              duration: 0.4,
+                            });
+                          },
+                        });
+                      },
+                    });
+                  },
+                });
+                break;
+              }
+            }
+          }
+
+          battleZones.forEach((battleZone) => {
+            battleZone.draw(c);
+          });
 
           if (keys.w.pressed && lastKey === "w") {
-            player.moving = true;
-            player.image = player.sprites.up;
+            player.animate = true;
+            if (player.sprites) player.image = player.sprites.up;
             for (let i = 0; i < boundaries.length; i++) {
               const boundary = boundaries[i];
               if (
@@ -385,6 +654,7 @@ export default function Home() {
                 break;
               }
             }
+
             // background.position.y += SPEED;
             if (moving) {
               movables.forEach((movable) => {
@@ -392,8 +662,8 @@ export default function Home() {
               });
             }
           } else if (keys.s.pressed && lastKey === "s") {
-            player.moving = true;
-            player.image = player.sprites.down;
+            player.animate = true;
+            if (player.sprites) player.image = player.sprites.down;
             for (let i = 0; i < boundaries.length; i++) {
               const boundary = boundaries[i];
               if (
@@ -429,8 +699,8 @@ export default function Home() {
               });
             }
           } else if (keys.a.pressed && lastKey === "a") {
-            player.moving = true;
-            player.image = player.sprites.left;
+            player.animate = true;
+            if (player.sprites) player.image = player.sprites.left;
             for (let i = 0; i < boundaries.length; i++) {
               const boundary = boundaries[i];
               if (
@@ -466,8 +736,8 @@ export default function Home() {
               });
             }
           } else if (keys.d.pressed && lastKey === "d") {
-            player.moving = true;
-            player.image = player.sprites.right;
+            player.animate = true;
+            if (player.sprites) player.image = player.sprites.right;
             for (let i = 0; i < boundaries.length; i++) {
               const boundary = boundaries[i];
               if (
@@ -508,12 +778,13 @@ export default function Home() {
             else if (keys.a.pressed) lastKey = "a";
             else if (keys.d.pressed) lastKey = "d";
           }
-          if (!player.moving) {
+          if (!player.animate) {
             player.frames.val = 0;
           }
         }
 
-        animate();
+        // animate();
+        animateBattle();
       },
     );
 
@@ -568,7 +839,6 @@ export default function Home() {
     //     className="border border-gray-300"
     //   />
     // </div>
-
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <div className="relative w-[450px] h-[600px]">
         <canvas
@@ -578,7 +848,33 @@ export default function Home() {
           className="absolute top-[45px] left-[45px] z-0"
         />
 
-        <div className="absolute inset-0 z-10 pointer-events-none">
+        <div className="absolute flex z-10 bg-white top-[200px] left-[45px] w-[360px] h-[80px] border-t-4 border-black text-black">
+          <div className="w-[55%] p-2 border-r-4 border-black flex items-center">
+            <h1 className="text-xs sm:text-sm font-bold leading-tight">
+              What will Draggle do?
+            </h1>
+          </div>
+
+          <div className="w-[45%] grid grid-cols-2 grid-rows-2 text-xs font-semibold">
+            <button className="hover:bg-gray-200 border-b-2 border-r-2 border-gray-300 flex items-center justify-center">
+              Tackle
+            </button>
+            <button className="hover:bg-gray-200 border-b-2 border-gray-300 flex items-center justify-center">
+              Fireball
+            </button>
+            <button className="hover:bg-gray-200 border-r-2 border-gray-300 flex items-center justify-center">
+              Growl
+            </button>
+            <button className="hover:bg-gray-200 flex items-center justify-center">
+              Run
+            </button>
+          </div>
+        </div>
+        <div
+          id="overlappingDiv"
+          className="absolute top-[45px] left-[45px] w-[360px] h-[270px] bg-black z-10 pointer-events-none opacity-0"
+        ></div>
+        <div className="absolute inset-0 z-20 pointer-events-none">
           <img
             src="/computerframe.png"
             alt="Computer Frame"
