@@ -24,6 +24,7 @@ interface SpriteOptions {
     left: HTMLImageElement;
     right: HTMLImageElement;
   };
+  rotation?: number;
 }
 
 interface Rectangle {
@@ -39,6 +40,7 @@ class Sprite {
   width: number;
   height: number;
   animate: boolean;
+  rotation: number;
   sprites?: {
     up: HTMLImageElement;
     down: HTMLImageElement;
@@ -59,6 +61,7 @@ class Sprite {
     sprites,
     isEnemy = false,
     animate = false,
+    rotation = 0,
   }: SpriteOptions) {
     this.position = position;
     this.image = image;
@@ -70,9 +73,19 @@ class Sprite {
     this.opacity = 1;
     this.health = 100;
     this.isEnemy = isEnemy;
+    this.rotation = rotation;
   }
   draw(c: CanvasRenderingContext2D) {
     c.save();
+    c.translate(
+      this.position.x + this.width / 2,
+      this.position.y + this.height / 2,
+    );
+    c.rotate(this.rotation);
+    c.translate(
+      -this.position.x - this.width / 2,
+      -this.position.y - this.height / 2,
+    );
     c.globalAlpha = this.opacity;
     c.drawImage(
       this.image,
@@ -103,48 +116,95 @@ class Sprite {
   attack({
     attack,
     recipient,
+    renderedSprites,
+    fireballImage,
   }: {
     attack: { name: string; damage: number; type: string };
     recipient: Sprite;
+    renderedSprites?: Sprite[];
+    fireballImage?: HTMLImageElement;
   }) {
+    // Define these outside the timeline so they are safely captured by the closure
+    const movementDistance = this.isEnemy ? -20 : 20;
+    const healthBar = this.isEnemy ? "#playerHealthBar" : "#enemyHealthBar";
+    let rotation = 1;
+    if (this.isEnemy) rotation = -2.2;
     const tl = gsap.timeline();
 
-    let movementDistance = 20;
+    switch (attack.name) {
+      case "Tackle":
+        tl.to(this.position, {
+          x: this.position.x - movementDistance,
+        })
+          .to(this.position, {
+            x: this.position.x + movementDistance * 2,
+            duration: 0.1,
+            onComplete: () => {
+              recipient.health -= attack.damage;
 
-    if (this.isEnemy) movementDistance = -20;
+              // Use the variables defined at the top of the function
+              gsap.to(healthBar, {
+                width: recipient.health + "%",
+              });
+              gsap.to(recipient.position, {
+                x: recipient.position.x + 10,
+                yoyo: true,
+                repeat: 5,
+                duration: 0.08,
+              });
+              gsap.to(recipient, {
+                opacity: 0,
+                repeat: 5,
+                yoyo: true,
+                duration: 0.08,
+              });
+            },
+          })
+          .to(this.position, {
+            x: this.position.x,
+          });
+        break;
 
-    let healthBar = "#enemyHealthBar";
-    if (this.isEnemy) healthBar = "#playerHealthBar";
+      case "Fireball":
+        if (!fireballImage || !renderedSprites) return;
 
-    tl.to(this.position, {
-      x: this.position.x - movementDistance,
-    })
-      .to(this.position, {
-        x: this.position.x + movementDistance * 2,
-        duration: 0.1,
-        onComplete: () => {
-          recipient.health -= attack.damage;
-          //enemy gets hit
-          gsap.to(healthBar, {
-            width: recipient.health + "%",
-          });
-          gsap.to(recipient.position, {
-            x: recipient.position.x + 10,
-            yoyo: true,
-            repeat: 5,
-            duration: 0.08,
-          });
-          gsap.to(recipient, {
-            opacity: 0,
-            repeat: 5,
-            yoyo: true,
-            duration: 0.08,
-          });
-        },
-      })
-      .to(this.position, {
-        x: this.position.x,
-      });
+        const fireball = new Sprite({
+          position: { x: this.position.x, y: this.position.y },
+          image: fireballImage,
+          frames: { max: 4, val: 0, elapsed: 0, hold: 10 },
+          animate: true,
+          width: 60,
+          height: 60,
+          rotation,
+        });
+
+        renderedSprites.push(fireball);
+
+        gsap.to(fireball.position, {
+          x: recipient.position.x,
+          y: recipient.position.y,
+          onComplete: () => {
+            const index = renderedSprites.indexOf(fireball);
+            if (index > -1) renderedSprites.splice(index, 1);
+
+            recipient.health -= attack.damage;
+            gsap.to(healthBar, { width: recipient.health + "%" });
+            gsap.to(recipient.position, {
+              x: recipient.position.x + 10,
+              yoyo: true,
+              repeat: 5,
+              duration: 0.08,
+            });
+            gsap.to(recipient, {
+              opacity: 0,
+              repeat: 5,
+              yoyo: true,
+              duration: 0.08,
+            });
+          },
+        });
+        break;
+    }
   }
 }
 
@@ -413,6 +473,22 @@ export default function Home() {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   ];
 
+  const attacks: Record<
+    string,
+    { name: string; damage: number; type: string }
+  > = {
+    Tackle: {
+      name: "Tackle",
+      damage: 10,
+      type: "Normal",
+    },
+    Fireball: {
+      name: "Fireball",
+      damage: 25,
+      type: "Fire",
+    },
+  };
+
   const collisionsMap: number[][] = [];
   const battleZonesMap: number[][] = [];
 
@@ -457,6 +533,7 @@ export default function Home() {
       loadImage("/battleBackground.png"),
       loadImage("/draggleSprite.png"),
       loadImage("/embySprite.png"),
+      loadImage("/fireball.png"),
     ]).then(
       ([
         worldImage,
@@ -467,6 +544,7 @@ export default function Home() {
         battleBackgroundImage,
         draggleImage,
         embyImage,
+        fireballImage,
       ]) => {
         for (let i = 0; i < collisions.length; i += 70) {
           collisionsMap.push(collisions.slice(i, i + 70));
@@ -589,14 +667,13 @@ export default function Home() {
           width: 60,
           height: 60,
         });
-
+        const renderedSprites = [draggle, emby];
         function animateBattle() {
           if (!c) return;
           window.requestAnimationFrame(animateBattle);
           battleBackground.draw(c);
-          draggle.draw(c);
-          emby.draw(c);
-          console.log("animate battle");
+          renderedSprites.forEach((sprite) => sprite.draw(c));
+          // console.log("animate battle");
         }
 
         function animate() {
@@ -851,15 +928,16 @@ export default function Home() {
         animateBattle();
 
         document.querySelectorAll("button").forEach((button) => {
-          button.addEventListener("click", () => {
+          button.addEventListener("click", (e) => {
             // alert("click");
+            const target = e.currentTarget as HTMLButtonElement;
+            const attackName = target.textContent?.trim();
+
             emby.attack({
-              attack: {
-                name: "Tackle",
-                damage: 10,
-                type: "Normal",
-              },
+              attack: attacks[attackName],
               recipient: draggle,
+              renderedSprites: renderedSprites, // Pass the array
+              fireballImage: fireballImage,
             });
           });
         });
@@ -917,6 +995,7 @@ export default function Home() {
     //     className="border border-gray-300"
     //   />
     // </div>
+
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <div className="relative w-[450px] h-[600px]">
         {/* health bar */}
@@ -980,13 +1059,16 @@ export default function Home() {
               <span className="text-xs scale-[0.60] block">Fireball</span>
             </button>
 
-            <button className="hover:bg-gray-200 border-r-2 border-gray-300 flex items-center justify-center overflow-hidden">
+            {/* 
+
+       <button className="hover:bg-gray-200 border-r-2 border-gray-300 flex items-center justify-center overflow-hidden">
               <span className="text-xs scale-[0.60] block">Growl</span>
             </button>
 
             <button className="hover:bg-gray-200 flex items-center justify-center overflow-hidden">
               <span className="text-xs scale-[0.60] block">Run</span>
             </button>
+*/}
           </div>
         </div>
         <div
