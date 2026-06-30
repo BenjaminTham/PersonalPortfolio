@@ -1,6 +1,12 @@
 "use client";
 import gsap from "gsap";
 import { useRef, useEffect } from "react";
+import { Press_Start_2P } from "next/font/google";
+
+const pressStart2P = Press_Start_2P({
+  weight: "400",
+  subsets: ["latin"],
+});
 
 interface SpriteOptions {
   position: { x: number; y: number };
@@ -11,6 +17,7 @@ interface SpriteOptions {
   height?: number;
   moving?: boolean;
   animate?: boolean;
+  isEnemy?: boolean;
   sprites?: {
     up: HTMLImageElement;
     down: HTMLImageElement;
@@ -38,6 +45,9 @@ class Sprite {
     left: HTMLImageElement;
     right: HTMLImageElement;
   };
+  opacity: number;
+  health: number;
+  isEnemy: boolean | undefined;
 
   constructor({
     position,
@@ -47,6 +57,7 @@ class Sprite {
     height,
     moving,
     sprites,
+    isEnemy = false,
     animate = false,
   }: SpriteOptions) {
     this.position = position;
@@ -56,8 +67,13 @@ class Sprite {
     this.height = height || this.image.height;
     this.animate = animate;
     this.sprites = sprites;
+    this.opacity = 1;
+    this.health = 100;
+    this.isEnemy = isEnemy;
   }
   draw(c: CanvasRenderingContext2D) {
+    c.save();
+    c.globalAlpha = this.opacity;
     c.drawImage(
       this.image,
       this.frames.val * (this.image.width / this.frames.max),
@@ -69,6 +85,7 @@ class Sprite {
       this.width,
       this.height,
     );
+    c.restore();
     if (!this.animate) return;
     if (this.frames.max > 1) {
       this.frames.elapsed++;
@@ -82,6 +99,52 @@ class Sprite {
     }
 
     // c.drawImage(this.image, this.position.x, this.position.y);
+  }
+  attack({
+    attack,
+    recipient,
+  }: {
+    attack: { name: string; damage: number; type: string };
+    recipient: Sprite;
+  }) {
+    const tl = gsap.timeline();
+
+    let movementDistance = 20;
+
+    if (this.isEnemy) movementDistance = -20;
+
+    let healthBar = "#enemyHealthBar";
+    if (this.isEnemy) healthBar = "#playerHealthBar";
+
+    tl.to(this.position, {
+      x: this.position.x - movementDistance,
+    })
+      .to(this.position, {
+        x: this.position.x + movementDistance * 2,
+        duration: 0.1,
+        onComplete: () => {
+          recipient.health -= attack.damage;
+          //enemy gets hit
+          gsap.to(healthBar, {
+            width: recipient.health + "%",
+          });
+          gsap.to(recipient.position, {
+            x: recipient.position.x + 10,
+            yoyo: true,
+            repeat: 5,
+            duration: 0.08,
+          });
+          gsap.to(recipient, {
+            opacity: 0,
+            repeat: 5,
+            yoyo: true,
+            duration: 0.08,
+          });
+        },
+      })
+      .to(this.position, {
+        x: this.position.x,
+      });
   }
 }
 
@@ -508,6 +571,7 @@ export default function Home() {
             hold: 40,
           },
           animate: true,
+          isEnemy: true,
           width: 60,
           height: 60,
         });
@@ -785,6 +849,20 @@ export default function Home() {
 
         // animate();
         animateBattle();
+
+        document.querySelectorAll("button").forEach((button) => {
+          button.addEventListener("click", () => {
+            // alert("click");
+            emby.attack({
+              attack: {
+                name: "Tackle",
+                damage: 10,
+                type: "Normal",
+              },
+              recipient: draggle,
+            });
+          });
+        });
       },
     );
 
@@ -841,6 +919,40 @@ export default function Home() {
     // </div>
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <div className="relative w-[450px] h-[600px]">
+        {/* health bar */}
+
+        <div className="absolute z-10 bg-white top-[65px] left-[65px] w-[120px] p-2 border-4 border-black">
+          <h1
+            className={`text-[8px] text-black font-bold mb-1 ${pressStart2P.className}`}
+          >
+            Draggle
+          </h1>
+          <div className="relative w-full h-[6px] bg-gray-200 rounded-full overflow-hidden mt-1">
+            <div className="absolute top-0 left-0 h-full bg-gray-500 w-full"></div>
+
+            <div
+              id="enemyHealthBar"
+              className="absolute top-0 left-0 h-full bg-green-500 w-full"
+            ></div>
+          </div>
+        </div>
+
+        <div className="absolute z-10 bg-white top-[150px] left-[260px] w-[120px] p-2 border-4 border-black">
+          <h1
+            className={`text-[8px] text-black font-bold mb-1 ${pressStart2P.className}`}
+          >
+            Emby
+          </h1>
+          <div className="relative w-full h-[6px] bg-gray-200 rounded-full overflow-hidden mt-1">
+            <div className="absolute top-0 left-0 h-full bg-gray-500 w-full"></div>
+
+            <div
+              id="playerHealthBar"
+              className="absolute top-0 left-0 h-full bg-green-500 w-full"
+            ></div>
+          </div>
+        </div>
+        {/* ########## */}
         <canvas
           ref={canvasRef}
           width={360}
@@ -848,25 +960,32 @@ export default function Home() {
           className="absolute top-[45px] left-[45px] z-0"
         />
 
-        <div className="absolute flex z-10 bg-white top-[200px] left-[45px] w-[360px] h-[80px] border-t-4 border-black text-black">
-          <div className="w-[55%] p-2 border-r-4 border-black flex items-center">
-            <h1 className="text-xs sm:text-sm font-bold leading-tight">
-              What will Draggle do?
+        <div
+          className={`absolute flex z-10 bg-white top-[210px] left-[45px] w-[360px] h-[80px] border-t-4 border-black text-black ${pressStart2P.className}`}
+        >
+          <div className="w-[40%] p-3 border-r-4 border-black flex items-center overflow-hidden">
+            <h1 className="text-xs scale-[0.6] origin-left leading-[20px] whitespace-nowrap">
+              What will
+              <br />
+              Emby do?
             </h1>
           </div>
+          {/* battle btn */}
+          <div className="w-[60%] grid grid-cols-2 grid-rows-2 text-[6px]">
+            <button className="hover:bg-gray-200 border-b-2 border-r-2 border-gray-300 flex items-center justify-center overflow-hidden">
+              <span className="text-xs scale-[0.60] block">Tackle</span>
+            </button>
 
-          <div className="w-[45%] grid grid-cols-2 grid-rows-2 text-xs font-semibold">
-            <button className="hover:bg-gray-200 border-b-2 border-r-2 border-gray-300 flex items-center justify-center">
-              Tackle
+            <button className="hover:bg-gray-200 border-b-2 border-gray-300 flex items-center justify-center overflow-hidden">
+              <span className="text-xs scale-[0.60] block">Fireball</span>
             </button>
-            <button className="hover:bg-gray-200 border-b-2 border-gray-300 flex items-center justify-center">
-              Fireball
+
+            <button className="hover:bg-gray-200 border-r-2 border-gray-300 flex items-center justify-center overflow-hidden">
+              <span className="text-xs scale-[0.60] block">Growl</span>
             </button>
-            <button className="hover:bg-gray-200 border-r-2 border-gray-300 flex items-center justify-center">
-              Growl
-            </button>
-            <button className="hover:bg-gray-200 flex items-center justify-center">
-              Run
+
+            <button className="hover:bg-gray-200 flex items-center justify-center overflow-hidden">
+              <span className="text-xs scale-[0.60] block">Run</span>
             </button>
           </div>
         </div>
