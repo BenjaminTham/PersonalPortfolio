@@ -25,6 +25,7 @@ interface SpriteOptions {
     right: HTMLImageElement;
   };
   rotation?: number;
+  name?: string;
 }
 
 interface Rectangle {
@@ -50,6 +51,7 @@ class Sprite {
   opacity: number;
   health: number;
   isEnemy: boolean | undefined;
+  name?: string;
 
   constructor({
     position,
@@ -62,6 +64,7 @@ class Sprite {
     isEnemy = false,
     animate = false,
     rotation = 0,
+    name,
   }: SpriteOptions) {
     this.position = position;
     this.image = image;
@@ -74,7 +77,22 @@ class Sprite {
     this.health = 100;
     this.isEnemy = isEnemy;
     this.rotation = rotation;
+    this.name = name;
   }
+  faint() {
+    const dialogueBox = document.querySelector<HTMLElement>("#dialogueBox");
+    if (dialogueBox) {
+      dialogueBox.style.display = "block";
+      dialogueBox.innerHTML = this.name + " fainted! ";
+    }
+    gsap.to(this.position, {
+      y: this.position.y + 20,
+    });
+    gsap.to(this, {
+      opacity: 0,
+    });
+  }
+
   draw(c: CanvasRenderingContext2D) {
     c.save();
     c.translate(
@@ -113,6 +131,7 @@ class Sprite {
 
     // c.drawImage(this.image, this.position.x, this.position.y);
   }
+
   attack({
     attack,
     recipient,
@@ -124,6 +143,11 @@ class Sprite {
     renderedSprites?: Sprite[];
     fireballImage?: HTMLImageElement;
   }) {
+    const dialogueBox = document.querySelector<HTMLElement>("#dialogueBox");
+    if (dialogueBox) {
+      dialogueBox.style.display = "block";
+      dialogueBox.innerHTML = this.name + " used " + attack.name;
+    }
     // Define these outside the timeline so they are safely captured by the closure
     const movementDistance = this.isEnemy ? -20 : 20;
     const healthBar = this.isEnemy ? "#playerHealthBar" : "#enemyHealthBar";
@@ -652,6 +676,7 @@ export default function Home() {
           isEnemy: true,
           width: 60,
           height: 60,
+          name: "Draggle",
         });
 
         const emby = new Sprite({
@@ -666,11 +691,40 @@ export default function Home() {
           animate: true,
           width: 60,
           height: 60,
+          name: "Emby",
         });
-        const renderedSprites = [draggle, emby];
+        let renderedSprites: Sprite[] = [];
+        let battleAnimationId: number;
+        let queue: (() => void)[] = [];
+
+        function initBattle() {
+          const userInterface =
+            document.querySelector<HTMLElement>("#userInterface");
+          if (userInterface) userInterface.style.display = "block";
+
+          const dialogueBox =
+            document.querySelector<HTMLElement>("#dialogueBox");
+          if (dialogueBox) dialogueBox.style.display = "none";
+
+          draggle.health = 100;
+          emby.health = 125;
+
+          gsap.to("#enemyHealthBar", { width: "100%" });
+          gsap.to("#playerHealthBar", { width: "100%" });
+
+          draggle.position = { x: 265, y: 0 };
+          draggle.opacity = 1;
+          emby.position = { x: 80, y: 80 };
+          emby.opacity = 1;
+
+          renderedSprites = [draggle, emby];
+          queue = [];
+        }
+
         function animateBattle() {
           if (!c) return;
-          window.requestAnimationFrame(animateBattle);
+          battleAnimationId = window.requestAnimationFrame(animateBattle);
+          console.log(battleAnimationId);
           battleBackground.draw(c);
           renderedSprites.forEach((sprite) => sprite.draw(c));
           // console.log("animate battle");
@@ -724,7 +778,7 @@ export default function Home() {
                   rectangle2: battleZone,
                 }) &&
                 overlappingArea > (battleZone.width * battleZone.height) / 2 &&
-                Math.random() < 0.01
+                Math.random() < 0.005
               ) {
                 console.log("activate battle");
                 //deactivate animation loop
@@ -745,6 +799,7 @@ export default function Home() {
                           duration: 0.4,
                           onComplete() {
                             // activate a new animation loop,
+                            initBattle();
                             animateBattle();
                             gsap.to("#overlappingDiv", {
                               opacity: 0,
@@ -924,23 +979,133 @@ export default function Home() {
           }
         }
 
-        // animate();
-        animateBattle();
+        animate();
 
+        // initBattle();
+        // animateBattle();
         document.querySelectorAll("button").forEach((button) => {
           button.addEventListener("click", (e) => {
-            // alert("click");
             const target = e.currentTarget as HTMLButtonElement;
             const attackName = target.textContent?.trim();
 
             emby.attack({
               attack: attacks[attackName],
               recipient: draggle,
-              renderedSprites: renderedSprites, // Pass the array
+              renderedSprites: renderedSprites,
               fireballImage: fireballImage,
+            });
+
+            // Check if Enemy Faints
+            if (draggle.health <= 0) {
+              queue.push(() => {
+                draggle.faint();
+              });
+
+              queue.push(() => {
+                gsap.to("#overlappingDiv", {
+                  opacity: 1,
+                  onComplete: () => {
+                    cancelAnimationFrame(battleAnimationId);
+                    animate(); // Resume main map loop
+
+                    const userInterface =
+                      document.querySelector<HTMLElement>("#userInterface");
+                    if (userInterface) {
+                      userInterface.style.display = "none";
+                    }
+
+                    gsap.to("#overlappingDiv", {
+                      opacity: 0,
+                    });
+
+                    battle.current.initiated = false;
+                  },
+                });
+              });
+              return;
+            }
+
+            // Enemy Attack
+            queue.push(() => {
+              const attackValues = Object.values(attacks);
+              const randomAttack =
+                attackValues[Math.floor(Math.random() * attackValues.length)];
+              draggle.attack({
+                attack: randomAttack,
+                recipient: emby,
+                renderedSprites: renderedSprites,
+                fireballImage: fireballImage,
+              });
+
+              // Check if Player Faints
+              if (emby.health <= 0) {
+                queue.push(() => {
+                  emby.faint();
+                });
+
+                queue.push(() => {
+                  gsap.to("#overlappingDiv", {
+                    opacity: 1,
+                    onComplete: () => {
+                      cancelAnimationFrame(battleAnimationId);
+                      animate(); // Resume main map loop
+
+                      const userInterface =
+                        document.querySelector<HTMLElement>("#userInterface");
+                      if (userInterface) {
+                        userInterface.style.display = "none";
+                      }
+
+                      gsap.to("#overlappingDiv", {
+                        opacity: 0,
+                      });
+
+                      battle.current.initiated = false;
+                    },
+                  });
+                });
+
+                queue.push(() => {
+                  gsap.to("#overlappingDiv", {
+                    opacity: 1,
+                    onComplete: () => {
+                      cancelAnimationFrame(battleAnimationId);
+                      animate(); // Resume main map loop
+
+                      const userInterface =
+                        document.querySelector<HTMLElement>("#userInterface");
+                      if (userInterface) {
+                        userInterface.style.display = "none";
+                      }
+
+                      gsap.to("#overlappingDiv", {
+                        opacity: 0,
+                      });
+
+                      // CRITICAL: Unlock the battle state so we can walk again!
+                      battle.current.initiated = false;
+                    },
+                  });
+                });
+                return;
+              }
             });
           });
         });
+        const dialogueBox = document.querySelector<HTMLElement>("#dialogueBox");
+
+        if (dialogueBox) {
+          dialogueBox.addEventListener("click", (e) => {
+            if (queue.length > 0) {
+              queue[0]();
+              queue.shift();
+            } else {
+              if (e) {
+                dialogueBox.style.display = "none";
+              }
+            }
+          });
+        }
       },
     );
 
@@ -999,39 +1164,72 @@ export default function Home() {
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <div className="relative w-[450px] h-[600px]">
         {/* health bar */}
+        <div id="userInterface" className="hidden">
+          <div className="absolute z-10 bg-white top-[65px] left-[65px] w-[120px] p-2 border-4 border-black">
+            <h1
+              className={`text-[8px] text-black font-bold mb-1 ${pressStart2P.className}`}
+            >
+              Draggle
+            </h1>
+            <div className="relative w-full h-[6px] bg-gray-200 rounded-full overflow-hidden mt-1">
+              <div className="absolute top-0 left-0 h-full bg-gray-500 w-full"></div>
 
-        <div className="absolute z-10 bg-white top-[65px] left-[65px] w-[120px] p-2 border-4 border-black">
-          <h1
-            className={`text-[8px] text-black font-bold mb-1 ${pressStart2P.className}`}
+              <div
+                id="enemyHealthBar"
+                className="absolute top-0 left-0 h-full bg-green-500 w-full"
+              ></div>
+            </div>
+          </div>
+
+          <div className="absolute z-10 bg-white top-[150px] left-[260px] w-[120px] p-2 border-4 border-black">
+            <h1
+              className={`text-[8px] text-black font-bold mb-1 ${pressStart2P.className}`}
+            >
+              Emby
+            </h1>
+            <div className="relative w-full h-[6px] bg-gray-200 rounded-full overflow-hidden mt-1">
+              <div className="absolute top-0 left-0 h-full bg-gray-500 w-full"></div>
+
+              <div
+                id="playerHealthBar"
+                className="absolute top-0 left-0 h-full bg-green-500 w-full"
+              ></div>
+            </div>
+          </div>
+          {/* ########## */}
+
+          <div
+            className={`absolute flex z-10 bg-white top-[210px] left-[45px] w-[360px] h-[80px] border-t-4 border-black text-black ${pressStart2P.className}`}
           >
-            Draggle
-          </h1>
-          <div className="relative w-full h-[6px] bg-gray-200 rounded-full overflow-hidden mt-1">
-            <div className="absolute top-0 left-0 h-full bg-gray-500 w-full"></div>
-
             <div
-              id="enemyHealthBar"
-              className="absolute top-0 left-0 h-full bg-green-500 w-full"
-            ></div>
+              id="dialogueBox"
+              className="hidden absolute z-20 top-0 bottom-0 right-0 left-0 w-full h-full p-3 bg-white text-xs cursor-pointer"
+            >
+              sasdasdsadasdasda
+            </div>
+            <div className="w-[40%] p-3 border-r-4 border-black flex items-center overflow-hidden">
+              <h1 className="text-xs scale-[0.6] origin-left leading-5 whitespace-nowrap">
+                What will
+                <br />
+                Emby do?
+              </h1>
+            </div>
+            {/* battle btn */}
+            <div className="w-[60%] grid grid-cols-2 text-[6px]">
+              <button className="hover:bg-gray-200 border-r-2 border-gray-300 flex items-center justify-center overflow-hidden">
+                <span className="text-xs scale-[0.60] block">Tackle</span>
+              </button>
+
+              <button className="hover:bg-gray-200 flex items-center justify-center overflow-hidden">
+                <span className="text-xs scale-[0.60] block">Fireball</span>
+              </button>
+            </div>
           </div>
         </div>
-
-        <div className="absolute z-10 bg-white top-[150px] left-[260px] w-[120px] p-2 border-4 border-black">
-          <h1
-            className={`text-[8px] text-black font-bold mb-1 ${pressStart2P.className}`}
-          >
-            Emby
-          </h1>
-          <div className="relative w-full h-[6px] bg-gray-200 rounded-full overflow-hidden mt-1">
-            <div className="absolute top-0 left-0 h-full bg-gray-500 w-full"></div>
-
-            <div
-              id="playerHealthBar"
-              className="absolute top-0 left-0 h-full bg-green-500 w-full"
-            ></div>
-          </div>
-        </div>
-        {/* ########## */}
+        <div
+          id="overlappingDiv"
+          className="absolute top-[45px] left-[45px] w-[360px] h-[270px] bg-black z-10 pointer-events-none opacity-0"
+        ></div>
         <canvas
           ref={canvasRef}
           width={360}
@@ -1039,42 +1237,6 @@ export default function Home() {
           className="absolute top-[45px] left-[45px] z-0"
         />
 
-        <div
-          className={`absolute flex z-10 bg-white top-[210px] left-[45px] w-[360px] h-[80px] border-t-4 border-black text-black ${pressStart2P.className}`}
-        >
-          <div className="w-[40%] p-3 border-r-4 border-black flex items-center overflow-hidden">
-            <h1 className="text-xs scale-[0.6] origin-left leading-[20px] whitespace-nowrap">
-              What will
-              <br />
-              Emby do?
-            </h1>
-          </div>
-          {/* battle btn */}
-          <div className="w-[60%] grid grid-cols-2 grid-rows-2 text-[6px]">
-            <button className="hover:bg-gray-200 border-b-2 border-r-2 border-gray-300 flex items-center justify-center overflow-hidden">
-              <span className="text-xs scale-[0.60] block">Tackle</span>
-            </button>
-
-            <button className="hover:bg-gray-200 border-b-2 border-gray-300 flex items-center justify-center overflow-hidden">
-              <span className="text-xs scale-[0.60] block">Fireball</span>
-            </button>
-
-            {/* 
-
-       <button className="hover:bg-gray-200 border-r-2 border-gray-300 flex items-center justify-center overflow-hidden">
-              <span className="text-xs scale-[0.60] block">Growl</span>
-            </button>
-
-            <button className="hover:bg-gray-200 flex items-center justify-center overflow-hidden">
-              <span className="text-xs scale-[0.60] block">Run</span>
-            </button>
-*/}
-          </div>
-        </div>
-        <div
-          id="overlappingDiv"
-          className="absolute top-[45px] left-[45px] w-[360px] h-[270px] bg-black z-10 pointer-events-none opacity-0"
-        ></div>
         <div className="absolute inset-0 z-20 pointer-events-none">
           <img
             src="/computerframe.png"
