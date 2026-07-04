@@ -85,6 +85,7 @@ class Sprite {
       dialogueBox.style.display = "block";
       dialogueBox.innerHTML = this.name + " fainted! ";
     }
+
     gsap.to(this.position, {
       y: this.position.y + 20,
     });
@@ -137,11 +138,13 @@ class Sprite {
     recipient,
     renderedSprites,
     fireballImage,
+    audio,
   }: {
     attack: { name: string; damage: number; type: string };
     recipient: Sprite;
     renderedSprites?: Sprite[];
     fireballImage?: HTMLImageElement;
+    audio?: any;
   }) {
     const dialogueBox = document.querySelector<HTMLElement>("#dialogueBox");
     if (dialogueBox) {
@@ -164,6 +167,7 @@ class Sprite {
             x: this.position.x + movementDistance * 2,
             duration: 0.1,
             onComplete: () => {
+              if (audio && audio.tackle) audio.tackle.play();
               recipient.health -= attack.damage;
 
               // Use the variables defined at the top of the function
@@ -208,6 +212,7 @@ class Sprite {
           x: recipient.position.x,
           y: recipient.position.y,
           onComplete: () => {
+            if (audio && audio.fireballhit) audio.fireballhit.play();
             const index = renderedSprites.indexOf(fireball);
             if (index > -1) renderedSprites.splice(index, 1);
 
@@ -258,6 +263,7 @@ class Boundary {
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const battleAudio = useRef<HTMLAudioElement | null>(null);
 
   const collisions = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -527,12 +533,28 @@ export default function Home() {
   });
 
   useEffect(() => {
+    battleAudio.current = new Audio("/Audio/battle.mp3");
+    battleAudio.current.volume = 0.3;
+    battleAudio.current.loop = true;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const c = canvas.getContext("2d");
     if (!c) return;
 
+    const audio = {
+      Map: new Audio("/Audio/map.mp3"),
+      // initBattle: new Audio("/Audio/initBattle.wav"),
+      tackle: new Audio("/Audio/tackleHit.wav"),
+      fireballinit: new Audio("/Audio/initFireball.wav"),
+      fireballhit: new Audio("/Audio/fireballHit.wav"),
+
+      faint: new Audio("/Audio/faint.wav"),
+      victory: new Audio("/Audio/victory.mp3"),
+    };
+
+    audio.Map.loop = true;
+    audio.Map.volume = 0.3;
     const keys = {
       w: { pressed: false },
       a: { pressed: false },
@@ -610,7 +632,7 @@ export default function Home() {
           });
         });
 
-        console.log(gsap);
+        // console.log(gsap);
 
         c.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -698,6 +720,10 @@ export default function Home() {
         let queue: (() => void)[] = [];
 
         function initBattle() {
+          // if (battleAudio.current) {
+          //   battleAudio.current.currentTime = 0;
+          //   battleAudio.current.play();
+          // }
           const userInterface =
             document.querySelector<HTMLElement>("#userInterface");
           if (userInterface) userInterface.style.display = "block";
@@ -724,7 +750,7 @@ export default function Home() {
         function animateBattle() {
           if (!c) return;
           battleAnimationId = window.requestAnimationFrame(animateBattle);
-          console.log(battleAnimationId);
+          // console.log(battleAnimationId);
           battleBackground.draw(c);
           renderedSprites.forEach((sprite) => sprite.draw(c));
           // console.log("animate battle");
@@ -743,7 +769,7 @@ export default function Home() {
           });
           let moving = true;
           player.animate = false;
-          console.log(animationId);
+          // console.log(animationId);
           if (battle.current.initiated) return; //activate a battle
           if (
             keys.w.pressed ||
@@ -778,11 +804,17 @@ export default function Home() {
                   rectangle2: battleZone,
                 }) &&
                 overlappingArea > (battleZone.width * battleZone.height) / 2 &&
-                Math.random() < 0.005
+                Math.random() < 0.001
               ) {
-                console.log("activate battle");
+                // console.log("activate battle");
                 //deactivate animation loop
                 window.cancelAnimationFrame(animationId);
+                audio.Map.pause();
+                // audio.initBattle.play();
+                if (battleAudio.current) {
+                  battleAudio.current.currentTime = 0;
+                  battleAudio.current.play();
+                }
                 battle.current.initiated = true;
                 gsap.to("#overlappingDiv", {
                   opacity: 1,
@@ -980,6 +1012,17 @@ export default function Home() {
         }
 
         animate();
+        const startBackgroundMusic = () => {
+          audio.Map.play().catch((error) => {
+            console.log("Audio play still blocked:", error);
+          });
+
+          window.removeEventListener("click", startBackgroundMusic);
+          window.removeEventListener("keydown", startBackgroundMusic);
+        };
+
+        window.addEventListener("click", startBackgroundMusic);
+        window.addEventListener("keydown", startBackgroundMusic);
 
         // initBattle();
         // animateBattle();
@@ -993,21 +1036,40 @@ export default function Home() {
               recipient: draggle,
               renderedSprites: renderedSprites,
               fireballImage: fireballImage,
+              audio: audio,
             });
+
+            // alert(attackName);
+            if (attackName == "Tackle") {
+              audio.tackle.play();
+            } else if (attackName == "Fireball") {
+              audio.fireballinit.play();
+            }
 
             // Check if Enemy Faints
             if (draggle.health <= 0) {
               queue.push(() => {
                 draggle.faint();
+                if (battleAudio.current) {
+                  battleAudio.current.pause();
+                  battleAudio.current.currentTime = 0;
+                  audio.victory.play();
+                }
               });
 
               queue.push(() => {
                 gsap.to("#overlappingDiv", {
                   opacity: 1,
                   onComplete: () => {
+                    if (battleAudio.current) {
+                      battleAudio.current.pause();
+                      battleAudio.current.currentTime = 0;
+                    }
+                    audio.victory.pause();
+                    audio.victory.currentTime = 0;
                     cancelAnimationFrame(battleAnimationId);
-                    animate(); // Resume main map loop
-
+                    animate();
+                    audio.Map.play();
                     const userInterface =
                       document.querySelector<HTMLElement>("#userInterface");
                     if (userInterface) {
@@ -1030,11 +1092,18 @@ export default function Home() {
               const attackValues = Object.values(attacks);
               const randomAttack =
                 attackValues[Math.floor(Math.random() * attackValues.length)];
+
+              if (randomAttack.name === "Tackle") {
+                audio.tackle.play();
+              } else if (randomAttack.name === "Fireball") {
+                audio.fireballinit.play();
+              }
               draggle.attack({
                 attack: randomAttack,
                 recipient: emby,
                 renderedSprites: renderedSprites,
                 fireballImage: fireballImage,
+                audio: audio,
               });
 
               // Check if Player Faints
